@@ -20,7 +20,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Middleware
-app.use(cors({ origin: 'http://192.168.1.5:8081', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
+app.use(cors({ origin: 'http://192.168.0.185:8081', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json());
 
 mongoose.connect('mongodb://localhost:27017/nativeApp', { useNewUrlParser: true, useUnifiedTopology: true })

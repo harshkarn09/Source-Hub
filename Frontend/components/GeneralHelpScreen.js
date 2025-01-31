@@ -19,8 +19,7 @@ function GeneralHelpScreen() {
       });
 
       if (result.type === 'success') {
-        console.log("File picked:", result);
-        setAttachments(result.uri ? [result.uri] : []); // Store file URIs
+        setAttachments(prev => [...prev, result.uri]); // Append to existing
       }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
@@ -68,16 +67,24 @@ function GeneralHelpScreen() {
     tags.forEach(tag => formData.append('tags', tag));
 
     attachments.forEach((fileUri, index) => {
+      // Extract file extension from URI
+      const fileType = fileUri.split('.').pop();
+      const mimeType = 
+        fileType === 'jpg' || fileType === 'jpeg' ? 'image/jpeg' :
+        fileType === 'png' ? 'image/png' :
+        fileType === 'pdf' ? 'application/pdf' :
+        'application/octet-stream';
+    
       const file = {
         uri: fileUri,
-        name: `file-${index}`,
-        type: 'application/octet-stream',  // Update the MIME type if needed (e.g., 'application/pdf' for PDFs)
+        name: `file-${index}.${fileType}`,
+        type: mimeType, // Correct MIME type
       };
       formData.append('attachments', file);
     });
 
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/help', {
+      const response = await fetch('http://192.168.0.185:5000/api/help', {
         method: 'POST',
         body: formData,
         headers: {

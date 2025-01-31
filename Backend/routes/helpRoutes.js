@@ -24,7 +24,14 @@ const storage = multer.diskStorage({
 
 // File Type Validation
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain'];
+  const allowedTypes = [
+    'image/jpeg', 
+    'image/png', 
+    'application/pdf', 
+    'text/plain',
+    'image/*' // Allow Expo camera images
+  ];
+  
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {

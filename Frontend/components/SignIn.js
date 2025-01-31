@@ -8,7 +8,7 @@ function SignIn({ navigation }) {
 
   const handleSignIn = async () => {
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/auth/signin', {
+      const response = await fetch('http://192.168.0.185:5000/api/auth/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

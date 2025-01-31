@@ -33,7 +33,7 @@ function HomePage({ navigation }) {
         style={[styles.optionButton, { backgroundColor: '#4CAF50' }]}
         onPress={() => navigation.navigate('GeneralHelp')} // Navigate to GeneralHelpScreen
       >
-        <Text style={styles.optionText}>General Help</Text>
+        <Text style={styles.optionText}>Query Nest</Text>
       </TouchableOpacity>
 
       {/* Marketing Help Option */}

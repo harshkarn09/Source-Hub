@@ -8,7 +8,7 @@ function SignUp({ navigation }) {
 
   const handleSignUp = async () => {
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/auth/signup', {
+      const response = await fetch('http://192.168.0.185:5000/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
