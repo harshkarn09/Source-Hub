@@ -20,16 +20,17 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Middleware
-app.use(cors({ origin: 'http://192.168.0.185:8081', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
+app.use(cors({ origin: 'http://192.168.1.5:8081', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json());
 
 mongoose.connect('mongodb://localhost:27017/nativeApp', { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/help', helpRoutes);
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('uploads')); // Serve static files from "uploads" directory
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -4,6 +4,7 @@ import SignIn from '../components/SignIn';
 import SignUp from '../components/SignUp';
 import HomePage from '../components/HomePage';
 import GeneralHelpScreen from '../components/GeneralHelpScreen'; // Import GeneralHelpScreen
+import SubmittedRequestPage from '../components/SubmittedRequestPage';
 
 const Stack = createStackNavigator();
 
@@ -14,6 +15,7 @@ function AppNavigator() {
       <Stack.Screen name="SignUp" component={SignUp} />
       <Stack.Screen name="HomePage" component={HomePage} />
       <Stack.Screen name="GeneralHelp" component={GeneralHelpScreen} />
+      <Stack.Screen name="SubmittedRequestPage" component={SubmittedRequestPage} />
     </Stack.Navigator>
   );
 }

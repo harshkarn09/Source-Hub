@@ -1,163 +1,293 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker for camera functionality
-import * as FileSystem from 'expo-file-system'; // Import FileSystem
+import { Picker } from '@react-native-picker/picker';
+import { useNavigation } from '@react-navigation/native';
 
-function GeneralHelpScreen() {
+const HelpRequestForm = () => {
+  const navigation = useNavigation();
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('coding');
   const [tags, setTags] = useState([]);
+  const [tagInput, setTagInput] = useState('');
   const [attachments, setAttachments] = useState([]);
 
-  // Function to pick a file (from file system)
-  const handleFilePick = async () => {
-    console.log("Opening file picker...");
+  const handleAddTag = () => {
+    if (tagInput.trim()) {
+      setTags([...tags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  const handleDocumentPick = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [DocumentPicker.types.allFiles],
+        type: '*/*',
+        copyToCacheDirectory: false,
       });
 
-      if (result.type === 'success') {
-        setAttachments(prev => [...prev, result.uri]); // Append to existing
+      if (result.assets) {
+        setAttachments(prev => [
+          ...prev,
+          {
+            uri: result.assets[0].uri,
+            name: result.assets[0].name,
+            type: result.assets[0].mimeType,
+          }
+        ]);
       }
-    } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        console.log('User cancelled file picker');
-      } else {
-        console.error('Error picking file:', err);
-      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to select document');
     }
   };
 
-  // Function to pick an image from the camera
-  const handleCameraPick = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.granted) {
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setAttachments([...attachments, result.uri]); // Add camera image to attachments
-      }
-    } else {
-      Alert.alert('Permission required', 'Camera permission is required to take a photo.');
-    }
+  const handleRemoveAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
-
-  // Log the document directory of the app
-  const getDocumentsDirectory = async () => {
-    const dir = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory);
-    console.log("Documents Directory:", dir); // Logs files inside the app's document directory
-  };
-
-  // Call the function to log the directory
-  useEffect(() => {
-    getDocumentsDirectory();
-  }, []);
 
   const handleSubmit = async () => {
+    if (!description.trim()) {
+      Alert.alert('Error', 'Please enter a description');
+      return;
+    }
+  
     const formData = new FormData();
     formData.append('description', description);
     formData.append('category', category);
-
-    tags.forEach(tag => formData.append('tags', tag));
-
-    attachments.forEach((fileUri, index) => {
-      // Extract file extension from URI
-      const fileType = fileUri.split('.').pop();
-      const mimeType = 
-        fileType === 'jpg' || fileType === 'jpeg' ? 'image/jpeg' :
-        fileType === 'png' ? 'image/png' :
-        fileType === 'pdf' ? 'application/pdf' :
-        'application/octet-stream';
-    
-      const file = {
-        uri: fileUri,
-        name: `file-${index}.${fileType}`,
-        type: mimeType, // Correct MIME type
-      };
-      formData.append('attachments', file);
+    formData.append('tags', JSON.stringify(tags)); // Make sure it's correctly formatted as an array
+  
+    attachments.forEach((file) => {
+      formData.append('attachments', {
+        uri: file.uri,
+        name: file.name,
+        type: file.type,
+      });
     });
-
+  
     try {
-      const response = await fetch('http://192.168.0.185:5000/api/help', {
+      const response = await fetch('http://192.168.1.5:5000/api/help', {
         method: 'POST',
         body: formData,
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json',
         },
       });
-
+  
       const data = await response.json();
       if (response.ok) {
-        Alert.alert('Help Request Submitted', data.message);
+        Alert.alert('Success', 'Request submitted successfully');
+        // Pass the correct data
+        navigation.navigate('SubmittedRequestPage', { requestData: data.data });
         setDescription('');
+        setCategory('coding');
         setTags([]);
         setAttachments([]);
       } else {
-        Alert.alert('Error', data.message || 'Failed to submit help request');
+        throw new Error(data.message || 'Submission failed');
       }
     } catch (error) {
-      console.error('Error:', error);
-      Alert.alert('Network error');
+      Alert.alert('Error', error.message || 'Failed to submit request');
     }
   };
+  
+  
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>General Help</Text>
+
       <TextInput
         style={styles.input}
-        placeholder="Describe your help request"
+        placeholder="Describe your request in detail"
         value={description}
         onChangeText={setDescription}
         multiline
-      />
-      
-      {/* Attach file button */}
-      <TouchableOpacity style={styles.button} onPress={handleFilePick}>
-        <Text style={styles.buttonText}>Attach Files</Text>
-      </TouchableOpacity>
-
-      {/* Use camera button */}
-      <TouchableOpacity style={styles.button} onPress={handleCameraPick}>
-        <Text style={styles.buttonText}>Use Camera</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.label}>Category</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter category (coding, college related, miscellaneous)"
-        value={category}
-        onChangeText={setCategory}
+        numberOfLines={4}
       />
 
-      <Text style={styles.label}>Tags (comma separated)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter tags"
-        value={tags.join(', ')}
-        onChangeText={(text) => setTags(text.split(',').map(tag => tag.trim()))}
+      <Picker
+        selectedValue={category}
+        onValueChange={(itemValue) => setCategory(itemValue)}
+        style={styles.picker}
+        dropdownIconColor="#666"
+      >
+        <Picker.Item label="Coding" value="coding" />
+        <Picker.Item label="Networking" value="networking" />
+        <Picker.Item label="Hardware" value="hardware" />
+        <Picker.Item label="Other" value="other" />
+      </Picker>
+
+      <View style={styles.tagContainer}>
+        <TextInput
+          style={styles.tagInput}
+          placeholder="Add tags (press enter to add)"
+          value={tagInput}
+          onChangeText={setTagInput}
+          onSubmitEditing={handleAddTag}
+        />
+        <TouchableOpacity style={styles.addTagButton} onPress={handleAddTag}>
+          <Text style={styles.buttonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        horizontal
+        data={tags}
+        keyExtractor={(_, i) => i.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{item}</Text>
+          </View>
+        )}
+        contentContainerStyle={styles.tagsList}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Submit Request</Text>
+      <View style={styles.attachmentButtons}>
+        <TouchableOpacity style={styles.fileButton} onPress={handleDocumentPick}>
+          <Text style={styles.buttonText}>Add File</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={attachments}
+        keyExtractor={(_, i) => i.toString()}
+        renderItem={({ item, index }) => (
+          <View style={styles.attachmentItem}>
+            <Text style={styles.attachmentName}>{item.name}</Text>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => handleRemoveAttachment(index)}
+            >
+              <Text style={styles.removeButtonText}>×</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <Text style={styles.submitButtonText}>Submit Request</Text>
       </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f7f7f7' },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
-  input: { width: '100%', padding: 10, borderWidth: 1, borderRadius: 5, borderColor: '#ccc', backgroundColor: '#fff' },
-  button: { backgroundColor: '#4CAF50', padding: 10, borderRadius: 5, marginVertical: 10 },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  label: { fontSize: 16, marginTop: 10, marginBottom: 5 },
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#2c3e50',
+  },
+  input: {
+    height: 120,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+    fontSize: 16,
+    textAlignVertical: 'top',
+  },
+  picker: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    marginBottom: 15,
+  },
+  tagInput: {
+    flex: 1,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  addTagButton: {
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    padding: 12,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tag: {
+    backgroundColor: '#e8f4fd',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  tagText: {
+    color: '#2c3e50',
+    fontSize: 14,
+  },
+  attachmentButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 15,
+  },
+  fileButton: {
+    flex: 1,
+    backgroundColor: '#95a5a6',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  attachmentName: {
+    flex: 1,
+    color: '#2c3e50',
+    fontSize: 14,
+  },
+  removeButton: {
+    backgroundColor: '#e74c3c',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  removeButtonText: {
+    color: 'white',
+    fontSize: 18,
+  },
+  submitButton: {
+    backgroundColor: '#27ae60',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  tagsList: {
+    marginBottom: 15,
+  },
 });
 
-export default GeneralHelpScreen;
+export default HelpRequestForm;

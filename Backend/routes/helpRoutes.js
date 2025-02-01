@@ -14,23 +14,13 @@ if (!fs.existsSync(uploadDir)) {
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir); // Save files in the "uploads" directory
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname); // Unique filename
-  },
+  destination: (req, file, cb) => cb(null, uploadDir), // Save files in "uploads" directory
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname), // Unique filename
 });
 
 // File Type Validation
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    'image/jpeg', 
-    'image/png', 
-    'application/pdf', 
-    'text/plain',
-    'image/*' // Allow Expo camera images
-  ];
+  const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain'];
   
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -47,23 +37,7 @@ const upload = multer({
 });
 
 // POST request to create a new help request (with file upload)
-router.post('/', (req, res, next) => {
-  console.log('Upload middleware triggered'); // Check if it reaches here
-
-  upload.array('attachments', 5)(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      console.error('Multer error:', err);
-      return res.status(400).json({ error: 'File upload error: ' + err.message });
-    } else if (err) {
-      console.error('Other error:', err);
-      return res.status(400).json({ error: err.message });
-    }
-    
-    console.log('Files uploaded:', req.files);
-    next(); // Pass control to `createHelpRequest`
-  });
-}, createHelpRequest);
-
+router.post('/', upload.array('attachments', 5), createHelpRequest);
 
 // GET request to fetch all help requests (with optional filters)
 router.get('/', getHelpRequests);
