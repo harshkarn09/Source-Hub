@@ -1,8 +1,16 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Alert, 
+  StyleSheet, 
+  ImageBackground, 
+  FlatList 
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function HomePage({ navigation }) {
+const HomePage = ({ navigation }) => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
@@ -24,87 +32,120 @@ function HomePage({ navigation }) {
     checkAuth();
   }, [navigation]);
 
+  const options = [
+    { title: 'Query Nest', color: '#4CAF50', screen: 'GeneralHelp' },
+    { title: 'Marketing Help', color: '#2196F3', screen: 'MarketingScreen' },
+    { title: 'Lost and Found', color: '#FF9800', screen: 'LostAndFoundScreen' },
+    { title: 'View Requests', color: '#FF6347', screen: 'SubmittedRequestPage' },
+    { title: 'View Lost & Found', color: '#FF5733', screen: 'ViewLostAndFoundScreen' }
+  ];
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Home Page</Text>
+    <ImageBackground 
+      source={require('../assets/resourcce.jpg')}  
+      style={styles.background}
+    >
+      <View style={styles.overlay}>
+        <Text style={styles.header}>Home Page</Text>
 
-      {/* General Help Option */}
-      <TouchableOpacity
-        style={[styles.optionButton, { backgroundColor: '#4CAF50' }]}
-        onPress={() => navigation.navigate('GeneralHelp')} // Navigate to GeneralHelpScreen
-      >
-        <Text style={styles.optionText}>Query Nest</Text>
-      </TouchableOpacity>
+        {/* Grid Layout for Buttons */}
+        <FlatList
+          data={options}
+          numColumns={2}
+          keyExtractor={(item) => item.title}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.optionButton, { backgroundColor: item.color }]}
+              onPress={() => navigation.navigate(item.screen)}
+            >
+              <Text style={styles.optionText}>{item.title}</Text>
+            </TouchableOpacity>
+          )}
+          columnWrapperStyle={styles.row}
+        />
 
-      {/* Marketing Help Option */}
-      <TouchableOpacity
-        style={[styles.optionButton, { backgroundColor: '#2196F3' }]}
-        onPress={() => Alert.alert('Marketing Help', 'You selected Marketing Help')}
-      >
-        <Text style={styles.optionText}>Marketing Help</Text>
-      </TouchableOpacity>
-
-      {/* Lost and Found Option */}
-      <TouchableOpacity
-        style={[styles.optionButton, { backgroundColor: '#FF9800' }]}
-        onPress={() => Alert.alert('Lost and Found', 'You selected Lost and Found')}
-      >
-        <Text style={styles.optionText}>Lost and Found</Text>
-      </TouchableOpacity>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.buttonText}>Logout</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.buttonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f7f7f7',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Reduced darkness for better visibility
   },
   header: {
-    fontSize: 30,
+    fontSize: 34,
     fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 20,
-    color: '#333',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 5,
+  },
+  row: {
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 10,
   },
   optionButton: {
-    width: '100%',
+    flex: 1,
     padding: 20,
-    borderRadius: 10,
-    marginVertical: 10,
+    borderRadius: 15,
+    margin: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)', // Softer background
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.6)', 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 6,
+    elevation: 6,
   },
   optionText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
   logoutButton: {
-    backgroundColor: '#FF6347',
+    backgroundColor: '#E63946',
     padding: 15,
-    width: '100%',
-    borderRadius: 5,
-    marginVertical: 20,
+    width: '90%',
+    borderRadius: 10,
     alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
   buttonText: {
     color: '#fff',
-    textAlign: 'center',
+    fontSize: 18,
     fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
+
 
 export default HomePage;

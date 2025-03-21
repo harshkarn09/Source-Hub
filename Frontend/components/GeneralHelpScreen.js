@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet, Image } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,7 @@ const HelpRequestForm = () => {
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTag = () => {
     if (tagInput.trim()) {
@@ -21,41 +22,67 @@ const HelpRequestForm = () => {
 
   const handleDocumentPick = async () => {
     try {
+      console.log('Opening file picker...');
       const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: false,
+        type: ['image/*', '*/*'], // Ensure images and other files are selectable
+        copyToCacheDirectory: true, // Ensure file URI is accessible
       });
-
-      if (result.assets) {
-        setAttachments(prev => [
-          ...prev,
-          {
-            uri: result.assets[0].uri,
-            name: result.assets[0].name,
-            type: result.assets[0].mimeType,
-          }
-        ]);
+  
+      console.log('Picker result:', result);
+  
+      if (result.canceled) {
+        console.log('File picker canceled');
+        return;
       }
+  
+      const selectedFile = result.assets?.[0]; // Ensure we're accessing assets correctly
+  
+      if (!selectedFile) {
+        console.log('No file selected');
+        return;
+      }
+  
+      const file = {
+        uri: selectedFile.uri,
+        name: selectedFile.name || `file_${Date.now()}`,
+        type: selectedFile.mimeType || 'application/octet-stream',
+        id: new Date().toISOString(),
+      };
+  
+      console.log('File selected:', file);
+  
+      setAttachments((prevAttachments) => {
+        if (prevAttachments.length < 5) {
+          return [...prevAttachments, file];
+        } else {
+          Alert.alert('Error', 'You can only select up to 5 files');
+          return prevAttachments;
+        }
+      });
     } catch (error) {
-      Alert.alert('Error', 'Failed to select document');
+      console.error('Error picking file:', error);
+      Alert.alert('Error', 'File picker error');
     }
   };
+  
+  
 
-  const handleRemoveAttachment = (index) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveAttachment = (id) => {
+    setAttachments((prev) => prev.filter((file) => file.id !== id));
   };
 
   const handleSubmit = async () => {
     if (!description.trim()) {
-      Alert.alert('Error', 'Please enter a description');
+      Alert.alert('Error', 'Description cannot be empty');
       return;
     }
   
     const formData = new FormData();
     formData.append('description', description);
     formData.append('category', category);
-    formData.append('tags', JSON.stringify(tags)); // Make sure it's correctly formatted as an array
+    formData.append('tags', tags.join(','));
   
+    // Only append files if any are selected
     attachments.forEach((file) => {
       formData.append('attachments', {
         uri: file.uri,
@@ -65,37 +92,65 @@ const HelpRequestForm = () => {
     });
   
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/help', {
+      setIsSubmitting(true);
+      const response = await fetch('http://192.168.0.179:5000/api/help', {
         method: 'POST',
         body: formData,
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
   
       const data = await response.json();
       if (response.ok) {
         Alert.alert('Success', 'Request submitted successfully');
-        // Pass the correct data
-        navigation.navigate('SubmittedRequestPage', { requestData: data.data });
         setDescription('');
         setCategory('coding');
         setTags([]);
-        setAttachments([]);
+        setAttachments([]); // Clear attachments
       } else {
         throw new Error(data.message || 'Submission failed');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to submit request');
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  
+
+  const renderAttachmentItem = ({ item }) => (
+    <View style={styles.attachmentItem}>
+      {item.type.startsWith('image/') ? (
+        <Image
+          source={{ uri: item.uri }}
+          style={styles.imagePreview}
+          onError={() => console.log('Image load error')}
+        />
+      ) : (
+        <View style={styles.filePreview}>
+          <Text style={styles.fileTypeText}>
+            {item.type.split('/')[1]?.toUpperCase() || 'FILE'}
+          </Text>
+        </View>
+      )}
+      <Text style={styles.attachmentName} numberOfLines={1}>
+        {item.name}
+      </Text>
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => handleRemoveAttachment(item.id)}
+      >
+        <Text style={styles.removeButtonText}>×</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>General Help</Text>
+      <Text style={styles.header}>General Help Request</Text>
 
+      {/* Description Input */}
       <TextInput
         style={styles.input}
         placeholder="Describe your request in detail"
@@ -105,9 +160,10 @@ const HelpRequestForm = () => {
         numberOfLines={4}
       />
 
+      {/* Category Picker */}
       <Picker
         selectedValue={category}
-        onValueChange={(itemValue) => setCategory(itemValue)}
+        onValueChange={setCategory}
         style={styles.picker}
         dropdownIconColor="#666"
       >
@@ -117,6 +173,7 @@ const HelpRequestForm = () => {
         <Picker.Item label="Other" value="other" />
       </Picker>
 
+      {/* Tags Section */}
       <View style={styles.tagContainer}>
         <TextInput
           style={styles.tagInput}
@@ -124,12 +181,18 @@ const HelpRequestForm = () => {
           value={tagInput}
           onChangeText={setTagInput}
           onSubmitEditing={handleAddTag}
+          returnKeyType="done"
         />
-        <TouchableOpacity style={styles.addTagButton} onPress={handleAddTag}>
+        <TouchableOpacity
+          style={styles.addTagButton}
+          onPress={handleAddTag}
+          disabled={!tagInput.trim()}
+        >
           <Text style={styles.buttonText}>+</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Tags List */}
       <FlatList
         horizontal
         data={tags}
@@ -142,30 +205,40 @@ const HelpRequestForm = () => {
         contentContainerStyle={styles.tagsList}
       />
 
-      <View style={styles.attachmentButtons}>
-        <TouchableOpacity style={styles.fileButton} onPress={handleDocumentPick}>
-          <Text style={styles.buttonText}>Add File</Text>
+      {/* Attachments Section */}
+      <View style={styles.attachmentSection}>
+        <Text style={styles.sectionTitle}>Attachments ({attachments.length}/5):</Text>
+
+        <TouchableOpacity
+          style={styles.fileButton}
+          onPress={handleDocumentPick}
+          disabled={attachments.length >= 5}
+        >
+          <Text style={styles.buttonText}>
+            {attachments.length >= 5 ? 'Max files reached' : 'Add File'}
+          </Text>
         </TouchableOpacity>
+
+        <FlatList
+          data={attachments}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAttachmentItem}
+          contentContainerStyle={styles.attachmentsList}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No files selected</Text>
+          }
+        />
       </View>
 
-      <FlatList
-        data={attachments}
-        keyExtractor={(_, i) => i.toString()}
-        renderItem={({ item, index }) => (
-          <View style={styles.attachmentItem}>
-            <Text style={styles.attachmentName}>{item.name}</Text>
-            <TouchableOpacity
-              style={styles.removeButton}
-              onPress={() => handleRemoveAttachment(index)}
-            >
-              <Text style={styles.removeButtonText}>×</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitButtonText}>Submit Request</Text>
+      {/* Submit Button */}
+      <TouchableOpacity
+        style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.submitButtonText}>
+          {isSubmitting ? 'Submitting...' : 'Submit Request'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -175,10 +248,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '', // Light background for better contrast
+ // Light background for better contrast
   },
   header: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
@@ -186,30 +260,52 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 120,
-    borderColor: '#ddd',
+    borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 15,
     marginBottom: 20,
     fontSize: 16,
     textAlignVertical: 'top',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   picker: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderRadius: 10,
     marginBottom: 20,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tagContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 15,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tagInput: {
     flex: 1,
-    borderColor: '#ddd',
+    borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    backgroundColor: '#f8f9fa',
   },
   addTagButton: {
     backgroundColor: '#3498db',
@@ -219,75 +315,127 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  tagsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
   tag: {
     backgroundColor: '#e8f4fd',
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
     marginRight: 8,
+    marginBottom: 5,
   },
   tagText: {
     color: '#2c3e50',
     fontSize: 14,
   },
-  attachmentButtons: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 15,
+  attachmentSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#34495e',
+    marginBottom: 10,
   },
   fileButton: {
-    flex: 1,
-    backgroundColor: '#95a5a6',
+    backgroundColor: '#2ecc71',
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  attachmentsList: {
+    paddingBottom: 10,
   },
   attachmentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  imagePreview: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  filePreview: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+    backgroundColor: '#f1c40f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  fileTypeText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   attachmentName: {
     flex: 1,
-    color: '#2c3e50',
     fontSize: 14,
+    color: '#2c3e50',
   },
   removeButton: {
     backgroundColor: '#e74c3c',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
   },
   removeButtonText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 18,
+    fontWeight: 'bold',
   },
   submitButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: '#3498db',
     borderRadius: 8,
-    padding: 16,
+    padding: 15,
     alignItems: 'center',
-    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
+  disabledButton: {
+    backgroundColor: '#bdc3c7',
   },
-  tagsList: {
-    marginBottom: 15,
+  emptyText: {
+    textAlign: 'center',
+    color: '#7f8c8d',
   },
 });
+
+
 
 export default HelpRequestForm;

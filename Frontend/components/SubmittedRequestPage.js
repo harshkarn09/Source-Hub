@@ -1,130 +1,164 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, Text, Image, StyleSheet, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Button, FlatList, Alert, Image } from 'react-native';
 
-const SubmittedRequestPage = ({ navigation }) => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+function SubmittedRequests({ navigation }) {
+  const [queryTag, setQueryTag] = useState('');
+  const [helpRequests, setHelpRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
+  const [replyText, setReplyText] = useState({}); // State to handle replies input
 
-  // Fetch all requests from the backend
+  const backendURL = "http://192.168.0.179:5000/uploads/";
+
   useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const response = await fetch('http://192.168.1.5:5000/api/help'); // Adjust the URL as needed
-        const data = await response.json();
-
-        if (response.ok) {
-          setRequests(data.data); // Set the requests into state
-        } else {
-          throw new Error(data.message || 'Failed to fetch requests');
-        }
-      } catch (error) {
-        console.error('Error fetching requests:', error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRequests();
+    fetchHelpRequests();
   }, []);
 
+  const fetchHelpRequests = async () => {
+    try {
+      const response = await fetch('http://192.168.0.179:5000/api/help');
+      const data = await response.json();
+      if (data && data.data) {
+        setHelpRequests(data.data);
+        setFilteredRequests(data.data);
+      } else {
+        console.error("Invalid data structure received");
+      }
+    } catch (error) {
+      console.error('Error fetching help requests:', error);
+    }
+  };
+
+  const handleTagFilter = () => {
+    if (!queryTag.trim()) {
+      setFilteredRequests(helpRequests); // Reset if input is empty
+      return;
+    }
+  
+    const filtered = helpRequests.filter(request => 
+      request.tags &&
+      Array.isArray(request.tags) &&
+      request.tags.some(tag => tag.toLowerCase().includes(queryTag.trim().toLowerCase()))
+    );
+  
+    setFilteredRequests(filtered);
+  };
+  
+
+  const handleReply = async (requestId) => {
+    if (!replyText[requestId]) {
+      Alert.alert("Error", "Reply cannot be empty.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://192.168.0.179:5000/api/help/reply/${requestId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: "Anonymous", message: replyText[requestId] }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        Alert.alert("Success", "Reply added!");
+        setReplyText({ ...replyText, [requestId]: "" }); // Clear reply input
+        fetchHelpRequests(); // Refresh data
+      } else {
+        Alert.alert("Error", data.message);
+      }
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      Alert.alert("Error", "Failed to add reply");
+    }
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>All Help Requests</Text>
+    <View style={styles.container}>
+      <Text style={styles.header}>Submitted Help Requests</Text>
 
-      {loading ? (
-        <Text style={styles.loadingText}>Loading requests...</Text>
-      ) : (
-        requests.map((request, index) => {
-          // Ensure tags are properly formatted (array or JSON parsed if needed)
-          const parsedTags = Array.isArray(request.tags) ? request.tags : JSON.parse(request.tags);
+      {/* Filter Input */}
+      <View style={styles.filterContainer}>
+        <TextInput
+          style={styles.filterInput}
+          placeholder="Filter by Tag"
+          value={queryTag}
+          onChangeText={setQueryTag}
+        />
+        <Button title="Filter" onPress={handleTagFilter} />
+      </View>
 
-          return (
-            <View key={index} style={styles.requestContainer}>
-              <Text style={styles.label}>Description:</Text>
-              <Text style={styles.text}>{request.description}</Text>
+      {/* Display Filtered Help Requests */}
+      <FlatList
+        data={filteredRequests || []}  // Default to an empty array if undefined
+        keyExtractor={item => item._id || item.id || Math.random().toString()} // Fallback key
+        renderItem={({ item }) => (
+          <View style={styles.requestCard}>
+            <Text style={styles.requestTitle}>{item.description}</Text>
+            <Text style={styles.requestCategory}>Category: {item.category}</Text>
+            <Text style={styles.requestTags}>Tags: {item.tags && Array.isArray(item.tags) ? item.tags.join(', ') : 'No tags available'}</Text>
 
-              <Text style={styles.label}>Category:</Text>
-              <Text style={styles.text}>{request.category}</Text>
+            {item.attachments && Array.isArray(item.attachments) && item.attachments.length > 0 && item.attachments.map((attachment, index) => (
+              <Image
+                key={index}
+                source={{ uri: attachment.url }}
+                style={styles.attachmentImage}
+              />
+            ))}
 
-              <Text style={styles.label}>Tags:</Text>
-              <Text style={styles.text}>
-                {parsedTags.length > 0 ? parsedTags.join(', ') : 'No tags available'}
-              </Text>
-
-              <Text style={styles.label}>Attachments:</Text>
-              {request.attachments && Array.isArray(request.attachments) && request.attachments.length > 0 ? (
-                request.attachments.map((file, index) => (
-                  <React.Fragment key={index}>
-                    <Text style={styles.text}>{file}</Text>
-                    {/* Display image if file is an image */}
-                    {file.includes('jpg') || file.includes('png') ? (
-                      <Image source={{ uri: `http://192.168.1.5:5000${file}` }} style={styles.image} />
-                    ) : null}
-                  </React.Fragment>
+            {/* Replies Section */}
+            <View style={styles.repliesContainer}>
+              <Text style={styles.repliesHeader}>Replies:</Text>
+              {item.replies && Array.isArray(item.replies) && item.replies.length > 0 ? (
+                item.replies.map((reply, index) => (
+                  <Text key={index} style={styles.replyText}>
+                    {reply.user}: {reply.message}
+                  </Text>
                 ))
               ) : (
-                <Text style={styles.text}>No attachments available</Text>
+                <Text style={styles.noReplyText}>No replies yet.</Text>
               )}
             </View>
-          );
-        })
-      )}
-    </ScrollView>
+
+            {/* Reply Input */}
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Write a reply..."
+              value={replyText[item._id] || ''}
+              onChangeText={(text) => setReplyText({ ...replyText, [item._id]: text })}
+            />
+            <TouchableOpacity onPress={() => handleReply(item._id)} style={styles.replyButton}>
+              <Text style={styles.replyButtonText}>Reply</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Text style={styles.buttonText}>Back</Text>
+      </TouchableOpacity>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#f4f7fa',
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  loadingText: {
-    textAlign: 'center',
-    fontSize: 18,
-    color: '#7f8c8d',
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 15,
-    color: '#34495e',
-  },
-  text: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#7f8c8d',
-    lineHeight: 22,
-  },
-  image: {
-    width: '100%',
-    height: 200,
-    marginVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ecf0f1',
-    resizeMode: 'cover',
-  },
-  requestContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ecf0f1',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2, // For Android shadow
-  },
+  container: { padding: 20 },
+  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  filterContainer: { flexDirection: 'row', marginBottom: 20 },
+  filterInput: { borderWidth: 1, borderColor: '#ccc', padding: 8, width: '80%' },
+  requestCard: { padding: 15, backgroundColor: '#f9f9f9', marginBottom: 20, borderRadius: 8 },
+  requestTitle: { fontSize: 18, fontWeight: 'bold' },
+  requestCategory: { fontSize: 16, color: '#555' },
+  requestTags: { fontSize: 14, color: '#777' },
+  attachmentImage: { width: '100%', height: 200, marginTop: 10 },
+  repliesContainer: { marginTop: 10 },
+  repliesHeader: { fontSize: 16, fontWeight: 'bold' },
+  replyText: { fontSize: 14, marginTop: 5 },
+  noReplyText: { fontSize: 14, color: '#aaa' },
+  replyInput: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginTop: 10 },
+  replyButton: { backgroundColor: '#007BFF', padding: 10, marginTop: 10, borderRadius: 5 },
+  replyButtonText: { color: '#fff', textAlign: 'center', fontSize: 16 },
+  backButton: { marginTop: 20, padding: 10, backgroundColor: '#f44336', borderRadius: 5 },
+  buttonText: { color: '#fff', textAlign: 'center' },
 });
 
-export default SubmittedRequestPage;
+export default SubmittedRequests;

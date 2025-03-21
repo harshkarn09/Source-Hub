@@ -1,11 +1,24 @@
 const mongoose = require('mongoose');
 
-const HelpRequestSchema = new mongoose.Schema({
-  description: { type: String, required: true },
-  category: { type: String, required: true },
-  tags: [{ type: String }], // Store tags as an array of strings
-  attachments: [{ name: String, url: String, type: String }], // Store file details
-  createdAt: { type: Date, default: Date.now },
-});
+const helpRequestSchema = new mongoose.Schema(
+  {
+    description: { type: String, required: true },
+    category: { type: String, required: true },
+    tags: { type: [String], default: [] },
+    attachments: [{
+      name: { type: String },
+      url: { type: String },
+      type: { type: String },
+    }],
+    upvotes: { type: Number, default: 0 },
+    replies: [{ // Adding replies field
+      user: { type: String, required: true },
+      message: { type: String, required: true },
+      timestamp: { type: Date, default: Date.now },
+    }],
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('HelpRequest', HelpRequestSchema);
+const HelpRequest = mongoose.model('HelpRequest', helpRequestSchema);
+module.exports = HelpRequest;
