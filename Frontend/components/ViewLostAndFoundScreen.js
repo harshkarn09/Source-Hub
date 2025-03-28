@@ -27,7 +27,7 @@ const ViewLostAndFoundScreen = () => {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.0.179:5000/api/lost-found');
+      const response = await fetch('http://192.168.98.89:5000/api/lost-found');
       if (!response.ok) throw new Error('Failed to fetch data');
       const data = await response.json();
       setItems(data);
@@ -58,7 +58,7 @@ const ViewLostAndFoundScreen = () => {
     }
   
     try {
-      const response = await fetch(`http://192.168.0.179:5000/api/lost-found/reply`, {
+      const response = await fetch(`http://192.168.98.89:5000/api/lost-found/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId, message: replyText, user: 'Anonymous' }),

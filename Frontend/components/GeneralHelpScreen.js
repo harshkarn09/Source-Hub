@@ -93,7 +93,7 @@ const HelpRequestForm = () => {
   
     try {
       setIsSubmitting(true);
-      const response = await fetch('http://192.168.0.179:5000/api/help', {
+      const response = await fetch('http://192.168.98.89:5000/api/help', {
         method: 'POST',
         body: formData,
         headers: {

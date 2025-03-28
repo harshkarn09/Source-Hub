@@ -10,7 +10,7 @@ const PaymentScreen = ({ route }) => {
   const handlePayment = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.0.179:5000/api/marketingHelp/${requestId}/payment`, {
+      const response = await fetch(`http://192.168.98.89:5000/api/marketingHelp/${requestId}/payment`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paymentStatus: "Completed" }),

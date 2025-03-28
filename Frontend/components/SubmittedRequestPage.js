@@ -7,7 +7,7 @@ function SubmittedRequests({ navigation }) {
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [replyText, setReplyText] = useState({}); // State to handle replies input
 
-  const backendURL = "http://192.168.0.179:5000/uploads/";
+  const backendURL = "http://192.168.98.89:5000/uploads/";
 
   useEffect(() => {
     fetchHelpRequests();
@@ -15,7 +15,7 @@ function SubmittedRequests({ navigation }) {
 
   const fetchHelpRequests = async () => {
     try {
-      const response = await fetch('http://192.168.0.179:5000/api/help');
+      const response = await fetch('http://192.168.98.89:5000/api/help');
       const data = await response.json();
       if (data && data.data) {
         setHelpRequests(data.data);
@@ -51,7 +51,7 @@ function SubmittedRequests({ navigation }) {
     }
 
     try {
-      const response = await fetch(`http://192.168.0.179:5000/api/help/reply/${requestId}`, {
+      const response = await fetch(`http://192.168.98.89:5000/api/help/reply/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user: "Anonymous", message: replyText[requestId] }),

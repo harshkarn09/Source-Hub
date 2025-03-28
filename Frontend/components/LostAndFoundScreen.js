@@ -46,7 +46,7 @@ const LostAndFoundScreen = () => {
 
     try {
       setIsSubmitting(true);
-      const response = await fetch('http://192.168.0.179:5000/api/lost-found', {
+      const response = await fetch('http://192.168.98.89:5000/api/lost-found', {
         method: 'POST',
         body: formData,
         headers: {

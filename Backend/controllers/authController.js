@@ -8,6 +8,11 @@ const signUp = async (req, res) => {
 
   console.log('Request Body:', req.body); // Log the incoming data
 
+  // Check if email ends with @nitdelhi.ac.in
+  if (!email.endsWith('@nitdelhi.ac.in')) {
+    return res.status(400).json({ msg: 'Only @nitdelhi.ac.in emails are allowed' });
+  }
+
   try {
     let user = await User.findOne({ email });
     if (user) {
@@ -30,6 +35,7 @@ const signUp = async (req, res) => {
     res.status(500).json({ msg: 'Server error' });
   }
 };
+
 
 
 // Sign In Controller

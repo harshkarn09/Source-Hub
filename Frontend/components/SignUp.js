@@ -15,27 +15,33 @@ function SignUp({ navigation }) {
   const [name, setName] = useState('');
 
   const handleSignUp = async () => {
+    if (!email.endsWith('@nitdelhi.ac.in')) {
+      Alert.alert('Invalid Email', 'Only @nitdelhi.ac.in emails are allowed');
+      return;
+    }
+  
     try {
-      const response = await fetch('http://192.168.0.179:5000/api/auth/signup', {
+      const response = await fetch('http://192.168.98.89:5000/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name, email, password }),
       });
-
+  
       const data = await response.json();
       if (response.ok) {
         Alert.alert('Sign Up Successful');
         navigation.navigate('SignIn');
       } else {
-        Alert.alert(data.message || 'Sign Up Failed');
+        Alert.alert(data.msg || 'Sign Up Failed'); // Use `msg` instead of `message`
       }
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Network error');
     }
   };
+  
 
   return (
     <ImageBackground

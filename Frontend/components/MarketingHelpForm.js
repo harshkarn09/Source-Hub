@@ -45,7 +45,7 @@ const MarketingHelpForm = () => {
     });
 
     try {
-      const response = await fetch("http://192.168.0.179:5000/api/marketingHelp", {
+      const response = await fetch("http://192.168.98.89:5000/api/marketingHelp", {
         method: "POST",
         body: formData,
         headers: { "Content-Type": "multipart/form-data" },

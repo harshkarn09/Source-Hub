@@ -16,7 +16,7 @@ const SignIn = ({ navigation }) => {
 
   const handleSignIn = async () => {
     try {
-      const response = await fetch('http://192.168.0.179:5000/api/auth/signin', {
+      const response = await fetch('http://192.168.98.89:5000/api/auth/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
